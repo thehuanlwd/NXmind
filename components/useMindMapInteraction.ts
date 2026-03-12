@@ -684,6 +684,44 @@ export const useMindMapInteraction = ({
         setDropTarget(null);
     };
 
+    const commitDrop = useCallback((target: DropTargetState, isCopy: boolean) => {
+        const { nodeId: targetId, position: pos } = target;
+
+        if (selectedIds.size > 1) {
+            if (isCopy) {
+                const ids = Array.from(selectedIds);
+                let currentData = internalData;
+                ids.forEach(id => {
+                    if (!isDescendant(currentData, targetId, id)) {
+                        currentData = copyNode(currentData, id, targetId, pos === 'inside' ? 'inside' : 'next');
+                    }
+                });
+                setInternalDataWithHistory(currentData, 'Paste/Copy Nodes');
+                return;
+            }
+
+            const newData = moveNodes(internalData, Array.from(selectedIds), targetId);
+            setInternalDataWithHistory(newData, 'Move Nodes');
+            return;
+        }
+
+        if (!draggedNodeId || draggedNodeId === targetId) return;
+        if (isDescendant(internalData, targetId, draggedNodeId)) {
+            console.warn('[MindMap] Drop invalid: Descendant check failed');
+            return;
+        }
+
+        if (isCopy) {
+            const newData = copyNode(internalData, draggedNodeId, targetId, pos);
+            setInternalDataWithHistory(newData, 'Copy Node');
+            return;
+        }
+
+        console.log('[MindMap] Execute Move Node:', { draggedNodeId, targetId, pos });
+        const newData = moveNode(internalData, draggedNodeId, targetId, pos);
+        setInternalDataWithHistory(newData, 'Move Node');
+    }, [draggedNodeId, internalData, selectedIds, setInternalDataWithHistory]);
+
     const handleDragOver = (e: React.DragEvent, targetId: string, isRoot: boolean) => {
         e.preventDefault();
         e.stopPropagation();
@@ -713,40 +751,29 @@ export const useMindMapInteraction = ({
 
         const isMultiDrag = selectedIds.size > 1;
         const pos = isMultiDrag ? 'inside' : getDropPosition(e, isRoot);
-
         const isCopy = e.ctrlKey || e.metaKey;
+        commitDrop({ nodeId: targetId, position: pos }, isCopy);
+        setDraggedNodeId(null);
+        setDropTarget(null);
+    };
 
-        if (isMultiDrag) {
-            if (isCopy) {
-                const ids = Array.from(selectedIds);
-                // Simple logic: Copy all selected nodes to target
-                let currentData = internalData;
-                ids.forEach(id => {
-                    // Check if not descendant
-                    if (!isDescendant(currentData, targetId, id)) {
-                        currentData = copyNode(currentData, id, targetId, pos === 'inside' ? 'inside' : 'next');
-                    }
-                });
-                setInternalDataWithHistory(currentData, 'Paste/Copy Nodes');
+    const handleCanvasDragOver = (e: React.DragEvent) => {
+        if (!draggedNodeId) return;
+        e.preventDefault();
+    };
 
-            } else {
-                const newData = moveNodes(internalData, Array.from(selectedIds), targetId);
-                setInternalDataWithHistory(newData, 'Move Nodes');
-            }
-        } else if (draggedNodeId && draggedNodeId !== targetId) {
-            if (!isDescendant(internalData, targetId, draggedNodeId)) {
-                if (isCopy) {
-                    const newData = copyNode(internalData, draggedNodeId, targetId, pos);
-                    setInternalDataWithHistory(newData, 'Copy Node');
-                } else {
-                    console.log('[MindMap] Execute Move Node:', { draggedNodeId, targetId, pos });
-                    const newData = moveNode(internalData, draggedNodeId, targetId, pos);
-                    setInternalDataWithHistory(newData, 'Move Node');
-                }
-            } else {
-                console.warn('[MindMap] Drop invalid: Descendant check failed');
-            }
+    const handleCanvasDrop = (e: React.DragEvent) => {
+        if (!draggedNodeId) return;
+
+        console.log('[MindMap] Canvas Drop Triggered:', dropTarget);
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (dropTarget) {
+            const isCopy = e.ctrlKey || e.metaKey;
+            commitDrop(dropTarget, isCopy);
         }
+
         setDraggedNodeId(null);
         setDropTarget(null);
     };
@@ -848,6 +875,8 @@ export const useMindMapInteraction = ({
         handleDragEnd,
         handleDragOver,
         handleDrop,
+        handleCanvasDragOver,
+        handleCanvasDrop,
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,

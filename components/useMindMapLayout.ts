@@ -7,8 +7,48 @@ const MIN_NODE_WIDTH = 80;
 const DURATION = 300;
 
 // Limits
-const MAX_NODE_WIDTH = 1280;
+const MAX_NODE_WIDTH = 500;
 const MAX_NODE_HEIGHT = 600;
+const NODE_HORIZONTAL_PADDING = 50;
+const LINE_HEIGHT = 24;
+const BASE_NODE_HEIGHT = 40;
+
+const getWrappedLineCount = (text: string, maxTextWidth: number, ctx: CanvasRenderingContext2D | null) => {
+  const paragraphs = text.split('\n');
+
+  if (!ctx) {
+    return Math.max(1, paragraphs.reduce((count, paragraph) => {
+      const estimated = Math.max(1, Math.ceil(paragraph.length / 14));
+      return count + estimated;
+    }, 0));
+  }
+
+  let totalLines = 0;
+
+  paragraphs.forEach((paragraph) => {
+    if (!paragraph) {
+      totalLines += 1;
+      return;
+    }
+
+    let currentLine = '';
+
+    for (const char of paragraph) {
+      const nextLine = currentLine + char;
+      if (ctx.measureText(nextLine).width <= maxTextWidth) {
+        currentLine = nextLine;
+        continue;
+      }
+
+      totalLines += 1;
+      currentLine = char;
+    }
+
+    totalLines += currentLine ? 1 : 0;
+  });
+
+  return Math.max(1, totalLines);
+};
 
 // Layout Constants
 const HORIZONTAL_GAP_MINDMAP = 60;
@@ -54,6 +94,7 @@ export const useMindMapLayout = ({
     root.descendants().forEach((d: any) => {
       const text = d.data.text || (d.data.isRoot ? "中心主题" : " ");
       const lines = text.split('\n');
+      const maxTextWidth = MAX_NODE_WIDTH - NODE_HORIZONTAL_PADDING;
       
       let maxWidth = MIN_NODE_WIDTH;
       if (ctx) {
@@ -63,12 +104,11 @@ export const useMindMapLayout = ({
           });
       }
 
-      const calculatedWidth = Math.max(MIN_NODE_WIDTH, maxWidth + 50);
+      const calculatedWidth = Math.max(MIN_NODE_WIDTH, maxWidth + NODE_HORIZONTAL_PADDING);
       d.width = Math.min(calculatedWidth, MAX_NODE_WIDTH);
 
-      // Estimate height based on line count
-      // Base height 40px, + 24px per extra line
-      const estimatedHeight = Math.max(40, 40 + (lines.length - 1) * 24);
+      const wrappedLineCount = getWrappedLineCount(text, maxTextWidth, ctx);
+      const estimatedHeight = Math.max(BASE_NODE_HEIGHT, BASE_NODE_HEIGHT + (wrappedLineCount - 1) * LINE_HEIGHT);
       d.actualHeight = Math.min(estimatedHeight, MAX_NODE_HEIGHT);
     });
 

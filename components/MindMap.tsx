@@ -97,6 +97,8 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
     handleDragEnd,
     handleDragOver,
     handleDrop,
+    handleCanvasDragOver,
+    handleCanvasDrop,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
@@ -151,6 +153,8 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
       className="w-full h-full relative overflow-hidden select-none transition-colors duration-500"
       style={{ backgroundColor: theme.background }}
       onContextMenu={(e) => e.preventDefault()}
+      onDragOver={handleCanvasDragOver}
+      onDrop={handleCanvasDrop}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -198,7 +202,7 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div className={`
-                        relative flex items-center justify-center px-4 py-2 rounded-lg shadow-sm transition-all duration-300 border
+                        relative flex items-center justify-center px-4 py-2 rounded-lg shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-300 border
                         ${isFocused ? 'ring-2 ring-white scale-105 z-20 shadow-lg' : 'hover:scale-105 z-10 cursor-pointer'}
                         ${isSelected && !isFocused ? 'ring-2 ring-cyan-400 z-10' : ''}
                         ${isDropTarget && dropPos === 'inside' ? 'ring-4 ring-sky-400/70' : ''}
@@ -236,6 +240,8 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
                         color: textColor,
                         caretColor: textColor,
                         height: '100%',
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'break-word',
                         // Vertically align text if single line or short
                         display: 'flex',
                         flexDirection: 'column',

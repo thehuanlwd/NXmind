@@ -26,6 +26,7 @@ export interface ViewState {
   k: number; // 缩放比例
   focusedNodeId: string | null;
   needsCentering?: boolean; // 是否需要重新居中
+  layout?: 'mindmap' | 'tree';
 }
 
 // 便签对象

@@ -60,16 +60,22 @@ pub fn run() {
         .build(app);
 
       
-      // 限制窗口最小大小，防止意外变小（为显示器的 12.5%）
+      // window-state 会原样恢复上次保存的尺寸，这里给主窗口一个可用的最小尺寸兜底，
+      // 避免把窗口恢复成“还能打开但几乎不可用”的状态。
       if let Some(window) = app.get_webview_window("main") {
           if let Ok(Some(monitor)) = window.current_monitor() {
               let size = monitor.size();
-              let min_width = size.width / 8;
-              let min_height = size.height / 8;
-              let _ = window.set_min_size(Some(tauri::Size::Physical(tauri::PhysicalSize {
-                  width: min_width,
-                  height: min_height,
-              })));
+              let available_width = size.width.saturating_sub(96);
+              let available_height = size.height.saturating_sub(96);
+
+              if available_width > 0 && available_height > 0 {
+                  let min_width = (size.width / 3).max(480).min(available_width);
+                  let min_height = (size.height / 3).max(320).min(available_height);
+                  let _ = window.set_min_size(Some(tauri::Size::Physical(tauri::PhysicalSize {
+                      width: min_width,
+                      height: min_height,
+                  })));
+              }
           }
       }
 

@@ -6,7 +6,7 @@ import Dock from './components/Dock';
 import { TitleBar } from './components/TitleBar';
 import { Settings } from './components/Settings';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { availableMonitors, getCurrentWindow, PhysicalPosition, PhysicalSize } from '@tauri-apps/api/window';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { Plus, Download, Copy, Trash2, Menu, GitGraph } from 'lucide-react';
 
@@ -14,6 +14,20 @@ const STORAGE_KEY = 'mindflow_notes_v1';
 const ACTIVE_ID_KEY = 'mindflow_active_id';
 const DEFAULT_THEME_KEY = 'mindflow_default_theme';
 const DOCK_POS_KEY = 'mindflow_dock_pos';
+const WINDOW_EDGE_PADDING = 48;
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const rectsIntersect = (
+    ax: number,
+    ay: number,
+    aw: number,
+    ah: number,
+    bx: number,
+    by: number,
+    bw: number,
+    bh: number
+) => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 
 const App: React.FC = () => {
     const [notes, setNotes] = useState<Note[]>([]);
@@ -64,9 +78,82 @@ const App: React.FC = () => {
 
     const mindMapRef = useRef<MindMapHandle>(null);
 
+    const normalizeWindowBounds = useCallback(async () => {
+        const win = getCurrentWindow();
+        const [size, position, isMaximized, monitors] = await Promise.all([
+            win.innerSize(),
+            win.outerPosition(),
+            win.isMaximized(),
+            availableMonitors(),
+        ]);
+
+        if (isMaximized || monitors.length === 0) {
+            return;
+        }
+
+        const monitor = monitors.find((candidate) =>
+            rectsIntersect(
+                position.x,
+                position.y,
+                Math.max(size.width, 1),
+                Math.max(size.height, 1),
+                candidate.workArea.position.x,
+                candidate.workArea.position.y,
+                candidate.workArea.size.width,
+                candidate.workArea.size.height
+            )
+        ) ?? monitors[0];
+
+        const { position: workAreaPos, size: workAreaSize } = monitor.workArea;
+        const maxWidth = Math.max(1, workAreaSize.width - WINDOW_EDGE_PADDING * 2);
+        const maxHeight = Math.max(1, workAreaSize.height - WINDOW_EDGE_PADDING * 2);
+        const minUsableWidth = Math.min(maxWidth, Math.min(720, Math.max(480, Math.floor(workAreaSize.width * 0.28))));
+        const minUsableHeight = Math.min(maxHeight, Math.min(520, Math.max(320, Math.floor(workAreaSize.height * 0.28))));
+
+        const isTooSmall = size.width < minUsableWidth || size.height < minUsableHeight;
+        const isOffScreen = !monitors.some((candidate) =>
+            rectsIntersect(
+                position.x,
+                position.y,
+                Math.max(size.width, 1),
+                Math.max(size.height, 1),
+                candidate.workArea.position.x,
+                candidate.workArea.position.y,
+                candidate.workArea.size.width,
+                candidate.workArea.size.height
+            )
+        );
+
+        if (!isTooSmall && !isOffScreen) {
+            return;
+        }
+
+        const targetWidth = clamp(
+            Math.min(1280, Math.floor(workAreaSize.width * 0.72)),
+            minUsableWidth,
+            maxWidth
+        );
+        const targetHeight = clamp(
+            Math.min(820, Math.floor(workAreaSize.height * 0.8)),
+            minUsableHeight,
+            maxHeight
+        );
+        const targetX = workAreaPos.x + Math.floor((workAreaSize.width - targetWidth) / 2);
+        const targetY = workAreaPos.y + Math.floor((workAreaSize.height - targetHeight) / 2);
+
+        await win.setSize(new PhysicalSize(targetWidth, targetHeight));
+        await win.setPosition(new PhysicalPosition(targetX, targetY));
+    }, []);
+
     useEffect(() => {
         // Show window gracefully after mount to avoid "flash" of unpositioned state
         const initWindow = async () => {
+            try {
+                await normalizeWindowBounds();
+            } catch (e) {
+                console.error('Failed to normalize window bounds', e);
+            }
+
             const win = getCurrentWindow();
             await win.show();
             await win.setFocus();
@@ -85,7 +172,7 @@ const App: React.FC = () => {
         return () => {
             unlisten.then(f => f());
         };
-    }, []);
+    }, [normalizeWindowBounds]);
 
     // Intro Animation Timer
     useEffect(() => {
