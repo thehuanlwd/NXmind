@@ -1,7 +1,7 @@
 {
   "name": "nxmind",
   "private": true,
-  "version": "0.5.6",
+  "version": "0.6.0",
   "author": "thehuan",
   "type": "module",
   "scripts": {

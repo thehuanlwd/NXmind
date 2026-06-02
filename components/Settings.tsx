@@ -157,7 +157,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, shortcuts, onUpdate
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-neutral-800 text-center text-xs text-neutral-600">
-                    NXmind 心流导图 v0.5.6
+                    NXmind 心流导图 v0.6.0
                 </div>
             </div>
         </div>
