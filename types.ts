@@ -17,6 +17,8 @@ export interface MindNode {
   children: MindNode[];
   parentId?: string | null; // 辅助字段，用于逻辑处理，不一定存储
   isRoot?: boolean;
+  priority?: number | null; // 优先级 1-5，null 表示无优先级
+  completed?: boolean; // 是否已完成
 }
 
 // 视图状态，用于恢复用户离开时的样子

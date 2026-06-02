@@ -4,7 +4,7 @@ import { MindNode, ViewState, Theme } from '../types';
 import { getContrastingTextColor, getSmartBorderColor } from '../utils/helpers';
 import { useMindMapLayout } from './useMindMapLayout';
 import { useMindMapInteraction } from './useMindMapInteraction';
-import { CircleHelp, X, Keyboard, MousePointer2, Command, CornerDownLeft, ArrowRightLeft, Focus } from 'lucide-react';
+import { CircleHelp, X, Keyboard, MousePointer2, Command, CornerDownLeft, ArrowRightLeft, Focus, Check } from 'lucide-react';
 
 
 interface MindMapProps {
@@ -102,6 +102,7 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    toggleCompleted,
 
 
   } = useMindMapInteraction({
@@ -145,6 +146,19 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
       return () => clearTimeout(timer);
     }
   }, [viewState.needsCentering, centerView, viewState.focusedNodeId, viewState.layout]);
+
+  // 获取优先级对应的颜色
+  const getPriorityColor = (priority: number | null): string => {
+    if (!priority) return 'transparent';
+    switch (priority) {
+      case 1: return '#ef4444'; // 红色
+      case 2: return '#f97316'; // 橙色
+      case 3: return '#eab308'; // 黄色
+      case 4: return '#3b82f6'; // 蓝色
+      case 5: return '#6b7280'; // 灰色
+      default: return 'transparent';
+    }
+  };
 
 
   return (
@@ -220,6 +234,29 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(({ data, viewState, them
                     )}
                     {isDropTarget && dropPos === 'next' && (
                       <div className="absolute -bottom-3 left-0 right-0 h-1 bg-sky-400 rounded-full shadow-lg shadow-sky-400/50" />
+                    )}
+
+                    {/* 优先级图标 */}
+                    {node.data.priority && (
+                      <div 
+                        className="relative mr-2 cursor-pointer flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCompleted(node.data.id);
+                        }}
+                      >
+                        <div 
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                          style={{ backgroundColor: getPriorityColor(node.data.priority) }}
+                        >
+                          {node.data.priority}
+                        </div>
+                        {node.data.completed && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                            <Check size={8} strokeWidth={3} className="text-white" />
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <textarea

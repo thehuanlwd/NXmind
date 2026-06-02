@@ -257,8 +257,16 @@ export const useMindMapLayout = ({
       d3.select(svgRef.current)
         .transition().duration(300)
         .call(zoomBehaviorRef.current.transform, newTransform);
+      
+      // 关键修复：手动更新 viewState，确保 viewState 与 D3 transform 同步
+      onViewStateChange({
+        ...viewStateRef.current,
+        x: newTransform.x,
+        y: newTransform.y,
+        k: newTransform.k,
+      });
     }
-  }, [calculateLayout]);
+  }, [calculateLayout, onViewStateChange]);
 
 
   // --- Zoom & Pan ---

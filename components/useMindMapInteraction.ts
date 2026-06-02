@@ -341,6 +341,41 @@ export const useMindMapInteraction = ({
         }
     }, [selectedIds, internalData, setInternalDataWithHistory, onViewStateChange, viewState, cancelPendingTextSave]);
 
+    // --- Priority Markers ---
+    const setPriority = (id: string | string[], priority: number | null) => {
+        cancelPendingTextSave();
+        const ids = Array.isArray(id) ? id : [id];
+        const updatePriority = (node: MindNode): MindNode => {
+            if (ids.includes(node.id)) return { ...node, priority, completed: priority ? node.completed : false };
+            return { ...node, children: node.children.map(updatePriority) };
+        };
+        const newData = updatePriority(internalData);
+        setInternalDataWithHistory(newData, priority ? `Set Priority ${priority}` : 'Clear Priority');
+    };
+
+    const toggleCompleted = (id: string) => {
+        cancelPendingTextSave();
+        const updateCompleted = (node: MindNode): MindNode => {
+            if (node.id === id) return { ...node, completed: !node.completed };
+            return { ...node, children: node.children.map(updateCompleted) };
+        };
+        const newData = updateCompleted(internalData);
+        setInternalDataWithHistory(newData, 'Toggle Completed');
+    };
+
+    // Handle priority shortcuts (Ctrl + 1-5, Ctrl + 0)
+    const handlePriorityShortcut = (key: string, targetId: string | string[]) => {
+        const ids = Array.isArray(targetId) ? targetId : [targetId];
+        if (key === '0') {
+            setPriority(ids, null);
+        } else {
+            const priority = parseInt(key);
+            if (priority >= 1 && priority <= 5) {
+                setPriority(ids, priority);
+            }
+        }
+    };
+
 
     // --- Shortcuts & Global Handlers ---
     useEffect(() => {
@@ -364,7 +399,33 @@ export const useMindMapInteraction = ({
                     e.preventDefault();
                     batchDelete();
                 }
-            } else if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+            }
+            // Priority shortcuts (Ctrl + 1-5, Ctrl + 0)
+            else if ((e.metaKey || e.ctrlKey) && /^[1-5]$/.test(e.key)) {
+                e.preventDefault();
+                if (selectedIds.size > 1) {
+                    // 批量设置优先级
+                    handlePriorityShortcut(e.key, Array.from(selectedIds));
+                } else if (editingId) {
+                    handlePriorityShortcut(e.key, editingId);
+                } else if (selectedIds.size === 1) {
+                    const firstId = Array.from(selectedIds)[0];
+                    handlePriorityShortcut(e.key, firstId);
+                }
+            }
+            else if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+                e.preventDefault();
+                if (selectedIds.size > 1) {
+                    // 批量取消优先级
+                    handlePriorityShortcut('0', Array.from(selectedIds));
+                } else if (editingId) {
+                    handlePriorityShortcut('0', editingId);
+                } else if (selectedIds.size === 1) {
+                    const firstId = Array.from(selectedIds)[0];
+                    handlePriorityShortcut('0', firstId);
+                }
+            }
+            else if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
                 // Global Copy (Multi-select)
                 if (selectedIds.size >= 1) {
                     e.preventDefault();
@@ -467,6 +528,28 @@ export const useMindMapInteraction = ({
                 if (node) {
                     navigator.clipboard.writeText(node.text);
                 }
+            }
+            return;
+        }
+
+        // Priority shortcuts (Ctrl + 1-5, Ctrl + 0)
+        if ((e.metaKey || e.ctrlKey) && /^[1-5]$/.test(e.key)) {
+            e.preventDefault();
+            if (selectedIds.size > 1) {
+                // 批量设置优先级
+                handlePriorityShortcut(e.key, Array.from(selectedIds));
+            } else {
+                handlePriorityShortcut(e.key, nodeId);
+            }
+            return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+            e.preventDefault();
+            if (selectedIds.size > 1) {
+                // 批量取消优先级
+                handlePriorityShortcut('0', Array.from(selectedIds));
+            } else {
+                handlePriorityShortcut('0', nodeId);
             }
             return;
         }
@@ -880,5 +963,6 @@ export const useMindMapInteraction = ({
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
+        toggleCompleted,
     };
 };
